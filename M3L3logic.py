@@ -1,11 +1,13 @@
 import sqlite3
 from config import DATABASE
+
 skills = [ (_,) for _ in (['Python', 'SQL', 'API', 'Discord'])]
-statuses = [ (_,) for _ in (['Pembuatan Prototipe', 'Dalam Pengembangan', 'Selesai, siap digunakan', 'Diperbarui', 'Selesai, tapi tidak sedang dilanjutkan'])]
+statuses = [ (_,) for _ in (['Prototipe', 'Dalam Pengembangan', 'Selesai', 'Diperbarui', 'Ditinggalkan/Tidak Dilanjutkan'])]
+
 class DB_Manager:
     def __init__(self, database):
         self.database = database
-        
+
     def create_tables(self):
         conn = sqlite3.connect(self.database)
         with conn:
@@ -33,20 +35,22 @@ class DB_Manager:
                             status_name TEXT
                         )''')
             conn.commit()
+        print("Database created successfully")
 
     def __executemany(self, sql, data):
         conn = sqlite3.connect(self.database)
         with conn:
             conn.executemany(sql, data)
             conn.commit()
-    
+
     def __select_data(self, sql, data = tuple()):
         conn = sqlite3.connect(self.database)
         with conn:
             cur = conn.cursor()
             cur.execute(sql, data)
             return cur.fetchall()
-        
+            
+
     def default_insert(self):
         sql = 'INSERT OR IGNORE INTO skills (skill_name) values(?)'
         data = skills
@@ -57,31 +61,22 @@ class DB_Manager:
 
 
     def insert_project(self, data):
-        sql = """INSERT INTO projects (user_id, project_name, url, status_id) values(?, ?, ?, ?)"""
+        sql = 'INSERT OR IGNORE INTO projects (user_id, project_name, url, status_id) values(?, ?, ?, ?)'
         self.__executemany(sql, data)
-
-    def add_new_collumns(self, table, collumn_name, type):
-        conn = sqlite3.connect(self.database)
-        alter_query = f"ALTER TABLE {table} ADD COLUMN {collumn_name} {type}"
-        with conn:
-            cur = conn.cursor()
-            cur.execute(alter_query)
-            return True
 
     def insert_skill(self, user_id, project_name, skill):
         sql = 'SELECT project_id FROM projects WHERE project_name = ? AND user_id = ?'
         project_id = self.__select_data(sql, (project_name, user_id))[0][0]
         skill_id = self.__select_data('SELECT skill_id FROM skills WHERE skill_name = ?', (skill,))[0][0]
-        data = [(project_id, skill_id)]
-        sql = 'INSERT OR IGNORE INTO project_skills VALUES(?, ?)'
+        data = [(project_id,skill_id)]
+        sql = 'INSERT OR IGNORE INTO project_skills VALUES (?, ?)'
         self.__executemany(sql, data)
 
-
+  
     def get_statuses(self):
-        sql="SELECT status_name from status"
+        sql='SELECT status_name from status'
         return self.__select_data(sql)
         
-
     def get_status_id(self, status_name):
         sql = 'SELECT status_id FROM status WHERE status_name = ?'
         res = self.__select_data(sql, (status_name,))
@@ -89,12 +84,11 @@ class DB_Manager:
         else: return None
 
     def get_projects(self, user_id):
-        sql="SELECT status_name from status"
-        return self.__select_data(sql, data = (user_id,))
-        
+        return self.__select_data(sql='SELECT * FROM projects WHERE user_id = ?', data = (user_id,))
+
     def get_project_id(self, project_name, user_id):
         return self.__select_data(sql='SELECT project_id FROM projects WHERE project_name = ? AND user_id = ?  ', data = (project_name, user_id,))[0][0]
-        
+
     def get_skills(self):
         return self.__select_data(sql='SELECT * FROM skills')
     
@@ -109,42 +103,26 @@ WHERE project_name = ?''', data = (project_name,) )
         sql = """
 SELECT project_name, description, url, status_name FROM projects 
 JOIN status ON
-status.status_id = projects.status_id)
+status.status_id = projects.status_id
 WHERE project_name=? AND user_id=?
 """
         return self.__select_data(sql=sql, data = (project_name, user_id))
-
+    
 
     def update_projects(self, param, data):
-        sql = f"""UPDATE projects SET {param} = ? WHERE project_name = ? AND user_id = ?"""
-        self.__executemany(sql, [data]) 
+        self.__executemany(f"UPDATE projects SET {param} = ? WHERE project_name = ? AND user_id = ?", [data]) # data ('atr', 'mew', 'name', 'user_id')
 
 
     def delete_project(self, user_id, project_id):
-        sql = """DELETE FROM projects WHERE user_id = ? AND project_id = ? """
+        sql = "DELETE FROM projects WHERE user_id = ? AND project_id = ? "
         self.__executemany(sql, [(user_id, project_id)])
-    
+
     def delete_skill(self, project_id, skill_id):
-        sql = """DELETE FROM skills WHERE skill_id = ? AND project_id = ? """
+        sql = "DELETE FROM skills WHERE skill_id = ? AND project_id = ? "
         self.__executemany(sql, [(skill_id, project_id)])
+
+
 if __name__ == '__main__':
     manager = DB_Manager(DATABASE)
-    # step 1: step 1 eh setuup
     manager.create_tables()
     manager.default_insert()
-    #step 2: pootis
-    user_id = 1
-    project_name = "Dawg2"
-    url = "https://github.com/leggeiy/symmetrical-carnival"
-    status_id = manager.get_status_id("Diperbarui")
-    manager.insert_project([(user_id, project_name, url, status_id)])
-    #step 3: this is a lot of kerfuffling for a ker who desnt know how to fuffle
-    manager.insert_skill(user_id, project_name, "Python")
-    manager.insert_skill(user_id, project_name, "Discord")
-    if manager.add_new_collumns("projects", "created_at", "TEXT"):
-        print("Kolom 'created_at' berhasil ditambahkan ke tabel projects!")
-    #step 4: look at dis \/
-    print(f"your user id: {user_id}")
-    for skill in manager.get_skills():
-        print(skill)
-    print(manager.get_project_skills(project_name))
