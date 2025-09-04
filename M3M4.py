@@ -1,9 +1,7 @@
 import sqlite3
 from config import DATABASE
-
 skills = [ (_,) for _ in (['Python', 'SQL', 'API', 'Discord'])]
 statuses = [ (_,) for _ in (['Pembuatan Prototipe', 'Dalam Pengembangan', 'Selesai, siap digunakan', 'Diperbarui', 'Selesai, tapi tidak sedang dilanjutkan'])]
-
 class DB_Manager:
     def __init__(self, database):
         self.database = database
@@ -62,6 +60,13 @@ class DB_Manager:
         sql = """INSERT INTO projects (user_id, project_name, url, status_id) values(?, ?, ?, ?)"""
         self.__executemany(sql, data)
 
+    def add_new_collumns(self, table, collumn_name, type):
+        conn = sqlite3.connect(self.database)
+        alter_query = f"ALTER TABLE {table} ADD COLUMN {collumn_name} {type}"
+        with conn:
+            cur = conn.cursor()
+            cur.execute(alter_query)
+            return True
 
     def insert_skill(self, user_id, project_name, skill):
         sql = 'SELECT project_id FROM projects WHERE project_name = ? AND user_id = ?'
@@ -122,8 +127,6 @@ WHERE project_name=? AND user_id=?
     def delete_skill(self, project_id, skill_id):
         sql = """DELETE FROM skills WHERE skill_id = ? AND project_id = ? """
         self.__executemany(sql, [(skill_id, project_id)])
-
-
 if __name__ == '__main__':
     manager = DB_Manager(DATABASE)
     # step 1: step 1 eh setuup
@@ -138,6 +141,8 @@ if __name__ == '__main__':
     #step 3: this is a lot of kerfuffling for a ker who desnt know how to fuffle
     manager.insert_skill(user_id, project_name, "Python")
     manager.insert_skill(user_id, project_name, "Discord")
+    if manager.add_new_collumns("projects", "created_at", "TEXT"):
+        print("Kolom 'created_at' berhasil ditambahkan ke tabel projects!")
     #step 4: look at dis \/
     print(f"stuff for this idiot: {user_id}")
     for skill in manager.get_skills():
